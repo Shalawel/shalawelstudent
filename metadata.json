@@ -1,0 +1,6 @@
+{
+  "name": "Tutor Cloud — Interactive Learning Dashboard",
+  "description": "An interactive student learning dashboard featuring personalized learning actions, AI tutoring workspace, smart quizzes, goal tracking, and daily session scheduling.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
