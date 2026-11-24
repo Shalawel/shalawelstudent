@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  DEMO_LOGIN_CREDENTIALS,
   ROLE_OPTIONS,
   buildStudentProfileFromAccount,
   evaluatePasswordStrength,
@@ -99,6 +100,10 @@ test('validateLoginInput and buildStudentProfileFromAccount behave deterministic
     password: 'StrongPassword9!',
   });
   assert.equal(okLogin.valid, true);
+
+  assert.equal(DEMO_LOGIN_CREDENTIALS.identifier, 'you@your.edu');
+  assert.equal(DEMO_LOGIN_CREDENTIALS.password, 'You1234');
+  assert.equal(validateLoginInput(DEMO_LOGIN_CREDENTIALS).valid, true);
 
   const profile = buildStudentProfileFromAccount({
     fullName: 'Aarav Sharma',

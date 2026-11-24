@@ -224,6 +224,29 @@ function verifyPasswordScrypt(password: string, salt: string, expectedHashHex: s
   return crypto.timingSafeEqual(actualBuf, expectedBuf);
 }
 
+function seedDemoAuthAccount() {
+  const demoEmail = 'you@your.edu';
+  if (authUsersByEmail.has(demoEmail)) return;
+  const { salt, hash } = hashPasswordScrypt('You1234');
+  authUsersByEmail.set(demoEmail, {
+    id: 'usr_demo_student',
+    email: demoEmail,
+    userId: 'you',
+    fullName: 'Jane Carter',
+    role: 'student',
+    grade: '9',
+    curriculum: 'CCSS',
+    subjects: ['English', 'Mathematics', 'Science'],
+    learningStyle: 'Interactive',
+    authProvider: 'password',
+    passwordSalt: salt,
+    passwordHash: hash,
+    createdAt: new Date().toISOString(),
+  });
+}
+
+seedDemoAuthAccount();
+
 function sanitizePublicUser(user: StoredAuthUser) {
   return {
     id: user.id,

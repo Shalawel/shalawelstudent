@@ -103,6 +103,11 @@ export interface LoginFormInput {
   password: string;
 }
 
+export const DEMO_LOGIN_CREDENTIALS = {
+  identifier: 'you@your.edu',
+  password: 'You1234',
+} as const;
+
 export interface ValidationResult<T extends string = string> {
   valid: boolean;
   errors: Partial<Record<T, string>>;

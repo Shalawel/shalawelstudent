@@ -25,6 +25,7 @@ import { TutorCloudLogo } from './BrandAssets';
 import type { AccountRole, AuthView, StudentProfile } from '../types/dashboard';
 import {
   CURRICULUM_OPTIONS,
+  DEMO_LOGIN_CREDENTIALS,
   GRADE_OPTIONS,
   INSTITUTION_TYPES,
   ROLE_OPTIONS,
@@ -1462,7 +1463,7 @@ export const AuthFlow: React.FC<AuthFlowProps> = ({
                             setLoginErrors((p) => ({ ...p, identifier: '' }));
                             setServerError(null);
                           }}
-                          placeholder="User name or  email ID"
+                          placeholder="you@your.edu"
                           className={`w-full rounded-xl border bg-[#F8FAFC] px-4 py-3 text-[14px] text-slate-900 placeholder:text-slate-400 transition-colors focus:bg-white focus:border-[#F59E0B] focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/20 ${
                             loginErrors.identifier ? 'border-red-400' : 'border-slate-200/90'
                           }`}
@@ -1539,6 +1540,33 @@ export const AuthFlow: React.FC<AuthFlowProps> = ({
                           className="text-[13px] font-semibold text-[#1D6FD8] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D6FD8] rounded"
                         >
                           Forgot Password?
+                        </button>
+                      </div>
+
+                      <div
+                        data-testid="demo-credentials-banner"
+                        className="flex items-center justify-between gap-2 rounded-xl border border-[#DCEBFA] bg-[#F4F9FF] px-3.5 py-2 text-[12px] text-slate-600"
+                      >
+                        <div className="min-w-0 truncate">
+                          <span className="font-semibold text-[#0B4F7C]">Demo ID:</span>{' '}
+                          <span className="font-mono text-slate-800">{DEMO_LOGIN_CREDENTIALS.identifier}</span>
+                          <span className="mx-1.5 text-slate-300">|</span>
+                          <span className="font-semibold text-[#0B4F7C]">Pass:</span>{' '}
+                          <span className="font-mono text-slate-800">{DEMO_LOGIN_CREDENTIALS.password}</span>
+                        </div>
+                        <button
+                          type="button"
+                          data-testid="fill-demo-credentials-button"
+                          onClick={() => {
+                            playUiSound('click');
+                            setLoginIdentifier(DEMO_LOGIN_CREDENTIALS.identifier);
+                            setLoginPassword(DEMO_LOGIN_CREDENTIALS.password);
+                            setLoginErrors({});
+                            setServerError(null);
+                          }}
+                          className="shrink-0 rounded-lg bg-white border border-[#BFD9F5] px-2.5 py-1 text-[11.5px] font-semibold text-[#0B4F7C] hover:bg-[#EBF5FF] transition-colors cursor-pointer"
+                        >
+                          Fill
                         </button>
                       </div>
 
