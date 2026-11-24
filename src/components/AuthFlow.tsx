@@ -12,6 +12,7 @@ import {
   Flag,
   GraduationCap,
   HeartHandshake,
+  LayoutDashboard,
   Loader2,
   Lock,
   Mail,
@@ -1588,8 +1589,21 @@ export const AuthFlow: React.FC<AuthFlowProps> = ({
                       <span className="h-px flex-1 bg-slate-200" aria-hidden="true" />
                     </div>
 
-                    {/* 3 SSO Buttons */}
-                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                    {/* Quick Dashboard CTA + 3 SSO Buttons */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+                      <button
+                        type="button"
+                        data-testid="quick-dashboard-cta"
+                        onClick={() => {
+                          playUiSound('success');
+                          onContinueDemo();
+                        }}
+                        className="bencho-press flex flex-col items-center justify-center gap-1.5 rounded-xl border border-[#BFD9F5] bg-[#F4F9FF] py-2.5 sm:py-3 px-1.5 sm:px-2 text-[11.5px] sm:text-[12.5px] font-semibold text-[#0B4F7C] hover:border-[#0B4F7C]/45 hover:bg-[#EBF5FF] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D6FD8]"
+                      >
+                        <LayoutDashboard className="h-[18px] w-[18px] text-[#0B4F7C]" aria-hidden="true" />
+                        <span className="whitespace-nowrap">Dashboard</span>
+                      </button>
+
                       {(
                         [
                           { id: 'google', label: 'Google', icon: <GoogleIcon /> },
@@ -1610,7 +1624,7 @@ export const AuthFlow: React.FC<AuthFlowProps> = ({
                             setActiveSsoProvider(provider.id);
                             setSsoError(null);
                           }}
-                          className="bencho-press flex flex-col items-center justify-center gap-1.5 rounded-xl border border-slate-200/95 bg-white py-2.5 sm:py-3 px-1.5 sm:px-2 text-[11.5px] sm:text-[12.5px] font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D6FD8]"
+                          className="bencho-press flex flex-col items-center justify-center gap-1.5 rounded-xl border border-slate-200/95 bg-white py-2.5 sm:py-3 px-1.5 sm:px-2 text-[11.5px] sm:text-[12.5px] font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D6FD8]"
                         >
                           {provider.icon}
                           <span className="whitespace-nowrap">{provider.label}</span>
