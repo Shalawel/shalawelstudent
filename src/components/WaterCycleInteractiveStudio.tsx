@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
+  AudioLines,
   CheckCircle2,
   Cloud,
   CloudLightning,
@@ -47,6 +48,8 @@ import {
   RealWorldScenarioVisual,
   WaterCycleSceneCanvas,
 } from './WaterCycleSceneCanvas';
+import { WaterCycleMayaAudioSetPanel } from './WaterCycleMayaAudioSetPanel';
+import { WATER_CYCLE_MAYA_AUDIO_SET } from '../utils/waterCycleAudioSet';
 import { playUiSound } from '../utils/uiSounds';
 
 interface WaterCycleInteractiveStudioProps {
@@ -101,6 +104,8 @@ export const WaterCycleInteractiveStudio: React.FC<WaterCycleInteractiveStudioPr
   const [introPaused, setIntroPaused] = useState(false);
   const [activeHotspot, setActiveHotspot] = useState<'sun' | 'ocean' | 'clouds' | 'river'>('sun');
   const [showObjectives, setShowObjectives] = useState(false);
+  const [showAudioSetPanel, setShowAudioSetPanel] = useState(false);
+  const [audioSetReadyCount, setAudioSetReadyCount] = useState(0);
 
   // Chapter 2 state: Four Stages + Microscopic Zoom + Activity 1 & Activity 4
   const [selectedStageId, setSelectedStageId] = useState<WaterCycleStageId>('evaporation');
@@ -292,6 +297,34 @@ export const WaterCycleInteractiveStudio: React.FC<WaterCycleInteractiveStudioPr
             </button>
             <button
               type="button"
+              data-testid="toggle-maya-audio-set"
+              onClick={() => {
+                playUiSound('click');
+                setShowAudioSetPanel((v) => !v);
+              }}
+              aria-expanded={showAudioSetPanel}
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                showAudioSetPanel
+                  ? 'border-[#0B2242] bg-[#0B2242] text-white'
+                  : 'border-indigo-200 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-800'
+              }`}
+            >
+              <AudioLines className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Maya Audio Set</span>
+              <span
+                className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+                  showAudioSetPanel
+                    ? 'bg-white/15 text-sky-100'
+                    : 'bg-white text-indigo-700 border border-indigo-200/80'
+                }`}
+              >
+                {audioSetReadyCount > 0
+                  ? `${audioSetReadyCount}/${WATER_CYCLE_MAYA_AUDIO_SET.length}`
+                  : `${WATER_CYCLE_MAYA_AUDIO_SET.length}`}
+              </span>
+            </button>
+            <button
+              type="button"
               onClick={() => onRequestVoiceExplanation(chapter.mayaIntroScript)}
               className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 hover:bg-sky-100 px-3 py-1.5 text-xs font-semibold text-[#15629E] transition-colors"
             >
@@ -368,6 +401,21 @@ export const WaterCycleInteractiveStudio: React.FC<WaterCycleInteractiveStudioPr
           })}
         </div>
       </div>
+
+      {/* MAYA AUDIO SET STUDIO PANEL (10 PRESET WATER CYCLE CLIPS) */}
+      <WaterCycleMayaAudioSetPanel
+        open={showAudioSetPanel}
+        activeChapterIndex={activeChapterIndex}
+        onClose={() => setShowAudioSetPanel(false)}
+        onJumpToChapter={(chapterIdx, stageId) => {
+          onSelectChapter(chapterIdx);
+          if (stageId) {
+            setSelectedStageId(stageId);
+          }
+        }}
+        onFallbackSpeak={(spokenText) => onRequestVoiceExplanation(spokenText)}
+        onReadyCountChange={(ready) => setAudioSetReadyCount(ready)}
+      />
 
       {/* ===================================================================== */}
       {/* CHAPTER 1: INTRODUCTION — WHERE DOES RAIN COME FROM?                  */}

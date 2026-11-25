@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import crypto from 'crypto';
+import fs from 'fs';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -16,6 +17,11 @@ import {
   type WhiteboardTelemetryInput,
 } from './src/utils/tutorMasteryEngine.ts';
 import type { RuntimeSessionType } from './src/utils/tutorPedagogyEngine.ts';
+import {
+  WATER_CYCLE_MAYA_AUDIO_SET,
+  concatenateWavBuffers,
+  findMayaWaterCycleClipById,
+} from './src/utils/waterCycleAudioSet.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -711,6 +717,135 @@ async function startServer() {
   const ttsAudioCache = new Map<string, { audioBase64: string; mimeType: string }>();
   const ttsModelCooldownUntil = new Map<string, number>();
 
+  // Persistent disk + memory cache for the preset Water Cycle Maya Audio Set
+  const waterCycleAudioDir = path.resolve(__dirname, 'public', 'audio', 'water-cycle');
+  const waterCycleAudioCache = new Map<
+    string,
+    { wavBuffer: Buffer; mimeType: string; generatedAt: string; model: string }
+  >();
+
+  // Hydrate any pre-generated Water Cycle WAV files from disk on startup
+  try {
+    if (fs.existsSync(waterCycleAudioDir)) {
+      for (const clip of WATER_CYCLE_MAYA_AUDIO_SET) {
+        const filePath = path.join(waterCycleAudioDir, `${clip.id}.wav`);
+        if (fs.existsSync(filePath)) {
+          const wavBuffer = fs.readFileSync(filePath);
+          if (wavBuffer.byteLength > 44) {
+            const stat = fs.statSync(filePath);
+            waterCycleAudioCache.set(clip.id, {
+              wavBuffer,
+              mimeType: 'audio/wav',
+              generatedAt: stat.mtime.toISOString(),
+              model: 'gemini-3.8-flash-lite-tts',
+            });
+            ttsAudioCache.set(`low::${clip.script}`, {
+              audioBase64: wavBuffer.toString('base64'),
+              mimeType: 'audio/wav',
+            });
+          }
+        }
+      }
+    }
+  } catch (hydrateErr) {
+    console.warn('[Water Cycle Audio Set] Skipped disk cache hydration:', hydrateErr);
+  }
+
+  async function synthesizeMayaSpeechWav(
+    cleanText: string,
+    speechStyle: string
+  ): Promise<
+    | { ok: true; audioBase64: string; mimeType: string; model: string }
+    | { ok: false; quotaExhausted: true; notice: string }
+    | { ok: false; quotaExhausted: false; error: unknown }
+  > {
+    const ai = getGeminiClient('v1beta');
+    const ttsModels = ['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts'];
+    const now = Date.now();
+    let quotaExhausted = false;
+    let lastNonQuotaErr: unknown = null;
+
+    for (const modelName of ttsModels) {
+      const cooldownUntil = ttsModelCooldownUntil.get(modelName) ?? 0;
+      if (cooldownUntil > now) {
+        quotaExhausted = true;
+        continue;
+      }
+
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  text: cleanText,
+                  speechMetadata: {
+                    style: speechStyle,
+                  },
+                },
+              ],
+            },
+          ],
+          config: {
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: 'Kore' },
+              },
+            },
+          },
+        });
+
+        const inlineAudio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+        const audioBase64 = inlineAudio?.data;
+
+        if (audioBase64) {
+          return {
+            ok: true,
+            audioBase64,
+            mimeType: inlineAudio?.mimeType || 'audio/wav',
+            model: modelName,
+          };
+        }
+      } catch (modelErr: unknown) {
+        const msg = modelErr instanceof Error ? modelErr.message : String(modelErr ?? '');
+        const isQuotaOrRateLimit =
+          msg.includes('429') ||
+          msg.includes('RESOURCE_EXHAUSTED') ||
+          msg.includes('Quota exceeded');
+
+        if (isQuotaOrRateLimit) {
+          quotaExhausted = true;
+          ttsModelCooldownUntil.set(modelName, Date.now() + 15 * 60 * 1000);
+          continue;
+        }
+
+        if (msg.includes('503') || msg.includes('UNAVAILABLE')) {
+          lastNonQuotaErr = modelErr;
+          continue;
+        }
+
+        return { ok: false, quotaExhausted: false, error: modelErr };
+      }
+    }
+
+    if (quotaExhausted) {
+      return {
+        ok: false,
+        quotaExhausted: true,
+        notice: 'Using built-in browser voice while Gemini TTS daily free-tier quota resets.',
+      };
+    }
+
+    return {
+      ok: false,
+      quotaExhausted: false,
+      error: lastNonQuotaErr ?? new Error('Speech synthesis did not return audio data.'),
+    };
+  }
+
   // 2. Text-to-Speech endpoint (gemini-3.8-flash-lite-tts -> gemini-3.8-flash-tts -> browser speech fallback)
   app.post('/api/tutor/tts', async (req, res) => {
     try {
@@ -731,12 +866,6 @@ async function startServer() {
         return;
       }
 
-      const ai = getGeminiClient('v1beta');
-      const ttsModels = ['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts'];
-      const now = Date.now();
-      let quotaExhausted = false;
-      let lastNonQuotaErr: unknown = null;
-
       // Section 34 & 35: Adapt spoken delivery style to cognitive load
       const speechStyle =
         spokenCognitiveLoad === 'high'
@@ -745,100 +874,221 @@ async function startServer() {
           ? 'Warm, steady, patient school tutor with clear articulation'
           : 'Warm, encouraging school tutor with clear conversational pronunciation';
 
-      for (const modelName of ttsModels) {
-        const cooldownUntil = ttsModelCooldownUntil.get(modelName) ?? 0;
-        if (cooldownUntil > now) {
-          quotaExhausted = true;
-          continue;
+      const result = await synthesizeMayaSpeechWav(cleanText, speechStyle);
+      if (result.ok) {
+        const payload = {
+          audioBase64: result.audioBase64,
+          mimeType: result.mimeType,
+        };
+        if (ttsAudioCache.size >= 80) {
+          const firstKey = ttsAudioCache.keys().next().value;
+          if (firstKey) ttsAudioCache.delete(firstKey);
         }
-
-        try {
-          const response = await ai.models.generateContent({
-            model: modelName,
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  {
-                    text: cleanText,
-                    speechMetadata: {
-                      style: speechStyle,
-                    },
-                  },
-                ],
-              },
-            ],
-            config: {
-              responseModalities: ['AUDIO'],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: 'Kore' },
-                },
-              },
-            },
-          });
-
-          const inlineAudio =
-            response.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-          const audioBase64 = inlineAudio?.data;
-
-          if (audioBase64) {
-            const payload = {
-              audioBase64,
-              mimeType: inlineAudio?.mimeType || 'audio/wav',
-            };
-            if (ttsAudioCache.size >= 60) {
-              const firstKey = ttsAudioCache.keys().next().value;
-              if (firstKey) ttsAudioCache.delete(firstKey);
-            }
-            ttsAudioCache.set(cacheKey, payload);
-            res.json(payload);
-            return;
-          }
-        } catch (modelErr: unknown) {
-          const msg = modelErr instanceof Error ? modelErr.message : String(modelErr ?? '');
-          const isQuotaOrRateLimit =
-            msg.includes('429') ||
-            msg.includes('RESOURCE_EXHAUSTED') ||
-            msg.includes('Quota exceeded');
-
-          if (isQuotaOrRateLimit) {
-            quotaExhausted = true;
-            // Pause retrying this specific TTS model for 15 minutes to avoid repeated 429s
-            ttsModelCooldownUntil.set(modelName, Date.now() + 15 * 60 * 1000);
-            continue;
-          }
-
-          if (msg.includes('503') || msg.includes('UNAVAILABLE')) {
-            lastNonQuotaErr = modelErr;
-            continue;
-          }
-
-          throw modelErr;
-        }
+        ttsAudioCache.set(cacheKey, payload);
+        res.json(payload);
+        return;
       }
 
-      if (quotaExhausted) {
+      if (result.quotaExhausted) {
         console.warn(
           '[POST /api/tutor/tts] Gemini TTS free-tier quota reached; delegating playback to browser speech synthesis.'
         );
         res.json({
           fallbackMode: 'browser_speech',
-          notice: 'Using built-in browser voice while Gemini TTS daily free-tier quota resets.',
+          notice: result.notice,
         });
         return;
       }
 
-      if (lastNonQuotaErr) {
-        throw lastNonQuotaErr;
-      }
-
-      res.status(502).json({ error: 'Speech synthesis did not return audio data.' });
+      throw result.error;
     } catch (err: unknown) {
       console.error('[POST /api/tutor/tts]', err);
       const formatted = formatGeminiError(err, 'Failed to synthesize tutor voice.', 'tts');
       res.status(formatted.status).json({ error: formatted.message });
     }
+  });
+
+  // 2B. Water Cycle Maya Audio Set manifest
+  app.get('/api/tutor/water-cycle-audio-set', (_req, res) => {
+    const clips = WATER_CYCLE_MAYA_AUDIO_SET.map((clip) => {
+      const cached = waterCycleAudioCache.get(clip.id);
+      return {
+        ...clip,
+        status: cached ? ('ready' as const) : ('missing' as const),
+        audioUrl: cached ? `/api/tutor/water-cycle-audio-set/${clip.id}/audio` : null,
+        byteSize: cached ? cached.wavBuffer.byteLength : 0,
+        generatedAt: cached ? cached.generatedAt : null,
+        model: cached ? cached.model : null,
+      };
+    });
+    const readyCount = clips.filter((c) => c.status === 'ready').length;
+    res.json({
+      clips,
+      readyCount,
+      totalCount: clips.length,
+      combinedAudioUrl:
+        readyCount > 0 ? '/api/tutor/water-cycle-audio-set/combined.wav' : null,
+    });
+  });
+
+  // 2C. Generate one or more Maya audio clips for the Water Cycle preset chapter set
+  app.post('/api/tutor/water-cycle-audio-set/generate', async (req, res) => {
+    try {
+      const { clipId, clipIds, forceRegenerate = false } = (req.body ?? {}) as {
+        clipId?: string;
+        clipIds?: string[];
+        forceRegenerate?: boolean;
+      };
+
+      const requestedIds = clipId
+        ? [clipId]
+        : Array.isArray(clipIds) && clipIds.length > 0
+        ? clipIds
+        : WATER_CYCLE_MAYA_AUDIO_SET.map((c) => c.id);
+
+      const targetClips = requestedIds
+        .map((id) => findMayaWaterCycleClipById(String(id)))
+        .filter((c): c is NonNullable<typeof c> => Boolean(c));
+
+      if (targetClips.length === 0) {
+        res.status(400).json({ error: 'No valid Water Cycle audio clip IDs were provided.' });
+        return;
+      }
+
+      const results: Array<{
+        id: string;
+        status: 'ready' | 'fallback';
+        audioUrl: string | null;
+        byteSize: number;
+        generatedAt: string | null;
+        model: string | null;
+      }> = [];
+
+      let fallbackNotice: string | null = null;
+
+      for (const clip of targetClips) {
+        const existing = waterCycleAudioCache.get(clip.id);
+        if (existing && !forceRegenerate) {
+          results.push({
+            id: clip.id,
+            status: 'ready',
+            audioUrl: `/api/tutor/water-cycle-audio-set/${clip.id}/audio`,
+            byteSize: existing.wavBuffer.byteLength,
+            generatedAt: existing.generatedAt,
+            model: existing.model,
+          });
+          continue;
+        }
+
+        const synth = await synthesizeMayaSpeechWav(clip.script, clip.voiceStyle);
+        if (synth.ok) {
+          const wavBuffer = Buffer.from(synth.audioBase64, 'base64');
+          const generatedAt = new Date().toISOString();
+          waterCycleAudioCache.set(clip.id, {
+            wavBuffer,
+            mimeType: synth.mimeType,
+            generatedAt,
+            model: synth.model,
+          });
+          ttsAudioCache.set(`low::${clip.script}`, {
+            audioBase64: synth.audioBase64,
+            mimeType: synth.mimeType,
+          });
+
+          // Best-effort persist to disk so the generated Maya set stays warm across reloads
+          try {
+            fs.mkdirSync(waterCycleAudioDir, { recursive: true });
+            fs.writeFileSync(path.join(waterCycleAudioDir, `${clip.id}.wav`), wavBuffer);
+          } catch {
+            // Non-fatal in read-only deployment filesystems; in-memory cache still serves immediately
+          }
+
+          results.push({
+            id: clip.id,
+            status: 'ready',
+            audioUrl: `/api/tutor/water-cycle-audio-set/${clip.id}/audio`,
+            byteSize: wavBuffer.byteLength,
+            generatedAt,
+            model: synth.model,
+          });
+          continue;
+        }
+
+        if (synth.quotaExhausted) {
+          fallbackNotice = synth.notice;
+          results.push({
+            id: clip.id,
+            status: 'fallback',
+            audioUrl: null,
+            byteSize: 0,
+            generatedAt: null,
+            model: null,
+          });
+          continue;
+        }
+
+        throw synth.error;
+      }
+
+      const readyCount = WATER_CYCLE_MAYA_AUDIO_SET.filter((c) =>
+        waterCycleAudioCache.has(c.id)
+      ).length;
+
+      res.json({
+        generated: results,
+        readyCount,
+        totalCount: WATER_CYCLE_MAYA_AUDIO_SET.length,
+        combinedAudioUrl:
+          readyCount > 0 ? '/api/tutor/water-cycle-audio-set/combined.wav' : null,
+        ...(fallbackNotice ? { fallbackMode: 'browser_speech', notice: fallbackNotice } : {}),
+      });
+    } catch (err: unknown) {
+      console.error('[POST /api/tutor/water-cycle-audio-set/generate]', err);
+      const formatted = formatGeminiError(
+        err,
+        'Failed to generate Water Cycle Maya audio set.',
+        'tts'
+      );
+      res.status(formatted.status).json({ error: formatted.message });
+    }
+  });
+
+  // 2D. Stream combined full-set WAV download
+  app.get('/api/tutor/water-cycle-audio-set/combined.wav', (_req, res) => {
+    const readyBuffers = WATER_CYCLE_MAYA_AUDIO_SET.map(
+      (clip) => waterCycleAudioCache.get(clip.id)?.wavBuffer
+    ).filter((buf): buf is Buffer => Boolean(buf && buf.byteLength > 44));
+
+    if (readyBuffers.length === 0) {
+      res.status(404).json({ error: 'No generated Maya audio clips available yet.' });
+      return;
+    }
+
+    const combined = concatenateWavBuffers(readyBuffers, 0.45);
+    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="maya-water-cycle-audio-set.wav"'
+    );
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(Buffer.from(combined));
+  });
+
+  // 2E. Stream a single generated Maya clip WAV
+  app.get('/api/tutor/water-cycle-audio-set/:clipId/audio', (req, res) => {
+    const clip = findMayaWaterCycleClipById(req.params.clipId);
+    if (!clip) {
+      res.status(404).json({ error: 'Unknown Water Cycle audio clip.' });
+      return;
+    }
+    const cached = waterCycleAudioCache.get(clip.id);
+    if (!cached) {
+      res.status(404).json({ error: 'Audio clip has not been generated yet.' });
+      return;
+    }
+    res.setHeader('Content-Type', cached.mimeType || 'audio/wav');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(cached.wavBuffer);
   });
 
   // 3. Audio Transcription endpoint (gemini-3.5-transcribe)
