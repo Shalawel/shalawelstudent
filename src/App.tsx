@@ -28,6 +28,7 @@ import { AchievementsView } from './components/AchievementsView';
 import { LearningProgressView } from './components/LearningProgressView';
 import { ReadinessPracticeView } from './components/ReadinessPracticeView';
 import { LearningSessionView } from './components/LearningSessionView';
+import { LearningPlanView } from './components/LearningPlanView';
 import { ScheduleView } from './components/ScheduleView';
 import { NotesResourcesView } from './components/NotesResourcesView';
 import { QuickNotesCompanionDrawer } from './components/NotesResourcesOverlays';
@@ -131,6 +132,12 @@ import {
   INITIAL_LEARNING_PATH_LESSONS,
   type LearningPathState,
 } from './utils/learningSessionLogic';
+import {
+  INITIAL_LEARNING_PLAN_LESSONS,
+  markLessonHasNotes,
+  recordLessonPracticeProgress,
+  type LearningPlanLesson,
+} from './utils/learningPlanLogic';
 import {
   INITIAL_SCHEDULE_SESSIONS,
   toDashboardCalendarSession,
@@ -324,6 +331,10 @@ export default function App() {
     lessons: INITIAL_LEARNING_PATH_LESSONS,
     archivedPlans: INITIAL_ARCHIVED_PLANS,
   });
+  const [learningPlanLessons, setLearningPlanLessons] = useState<LearningPlanLesson[]>(
+    INITIAL_LEARNING_PLAN_LESSONS
+  );
+  const [activeQuizPlanLessonId, setActiveQuizPlanLessonId] = useState<string | null>(null);
   const [scheduleSessions, setScheduleSessions] = useState<ScheduleSessionItem[]>(
     INITIAL_SCHEDULE_SESSIONS
   );
@@ -956,6 +967,24 @@ export default function App() {
                 onNavigateToActivity={(targetSection) => setActiveSection(targetSection)}
                 onNotify={showToast}
               />
+            ) : activeSection === 'sessions' ? (
+              <LearningPlanView
+                lessons={learningPlanLessons}
+                onUpdateLessons={setLearningPlanLessons}
+                onStartTopicSession={(input) => handleStartConfiguredSession(input)}
+                onLaunchSmartQuiz={(input, lessonId) => {
+                  setActiveQuizPlanLessonId(lessonId ?? null);
+                  setActiveSmartQuiz(input);
+                }}
+                onOpenLessonNotes={(lesson) =>
+                  setQuickNotesContext({
+                    label: 'Learning Plan',
+                    subject: lesson.subject,
+                    topic: lesson.title,
+                  })
+                }
+                onNotify={showToast}
+              />
             ) : activeSection === 'learning-plan' ? (
               <LearningSessionView
                 pathState={learningPathState}
@@ -1256,16 +1285,24 @@ export default function App() {
                 activityType: 'Quiz',
               })
             );
+            if (activeQuizPlanLessonId) {
+              setLearningPlanLessons((prev) =>
+                recordLessonPracticeProgress(prev, activeQuizPlanLessonId, score)
+              );
+            }
             creditDailyStreak();
             showToast(
               `Smart Quiz (${activeSmartQuiz.subject}: ${activeSmartQuiz.topic}) finished — ${score}%`
             );
           }}
-          onClose={() => setActiveSmartQuiz(null)}
+          onClose={() => {
+            setActiveSmartQuiz(null);
+            setActiveQuizPlanLessonId(null);
+          }}
         />
       )}
 
-      {/* Quick Notes & Uploaded Books Companion Drawer (available in Live Sessions & Practice) */}
+      {/* Quick Notes & Uploaded Books Companion Drawer (available in Live Sessions, Practice & Learning Plan) */}
       <QuickNotesCompanionDrawer
         open={Boolean(quickNotesContext)}
         contextLabel={quickNotesContext?.label || 'Study'}
@@ -1285,6 +1322,9 @@ export default function App() {
             }),
             ...prev,
           ]);
+          setLearningPlanLessons((prev) =>
+            markLessonHasNotes(prev, subject, quickNotesContext?.topic || title)
+          );
           showToast(`Saved "${title}" to Notes & Resources`);
         }}
         onOpenFullLibrary={() => {

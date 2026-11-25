@@ -62,7 +62,7 @@ interface DashboardHomeProps {
   onMarkAllNotificationsRead: () => void;
   onOpenProfileModal: () => void;
   onOpenStartSession: () => void;
-  onOpenAnglesVoiceClassroom: () => void;
+  onOpenAnglesVoiceClassroom?: () => void;
   onOpenSolveProblem: () => void;
   onOpenSmartQuiz: () => void;
   onOpenAiLessons: () => void;
@@ -101,7 +101,6 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
   onMarkAllNotificationsRead,
   onOpenProfileModal,
   onOpenStartSession,
-  onOpenAnglesVoiceClassroom,
   onOpenSolveProblem,
   onOpenSmartQuiz,
   onOpenAiLessons,
@@ -260,13 +259,6 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                   : 'Add subjects and curriculum to personalize your learning.'}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={onOpenProfileModal}
-              className="self-start sm:self-center rounded-full bg-[#C86400] hover:bg-[#B05700] px-5 py-2.5 text-xs font-semibold text-white whitespace-nowrap shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-            >
-              Go to Profile
-            </button>
           </div>
 
           {/* Streak banner */}
@@ -327,20 +319,13 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div>
             <TactileButton
               sound="pop"
               onClick={onOpenStartSession}
               className="w-full rounded-xl bg-[#18689E]/95 hover:bg-[#1E7BB8] border border-white/25 py-3.5 px-4 text-[13.5px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
             >
               Start Learning
-            </TactileButton>
-            <TactileButton
-              sound="pop"
-              onClick={onOpenAnglesVoiceClassroom}
-              className="w-full rounded-xl bg-[#F39200] hover:bg-[#DF8500] py-3.5 px-4 text-[13.5px] font-semibold text-slate-950 shadow-[0_4px_14px_rgba(243,146,0,0.32)] transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-            >
-              Class 5 Math: Angles (Voice)
             </TactileButton>
           </div>
         </HorizonHeroSurface>

@@ -609,7 +609,7 @@ export const INITIAL_ACHIEVEMENT_BADGES: AchievementBadge[] = [
     displayFormat: 'fraction',
     iconKind: 'folder',
     activitySection: 'sessions',
-    activityLabel: 'Open Tutoring Sessions',
+    activityLabel: 'Open Learning Plan',
     stepDelta: 1,
   },
   {
@@ -626,7 +626,7 @@ export const INITIAL_ACHIEVEMENT_BADGES: AchievementBadge[] = [
     displayFormat: 'fraction',
     iconKind: 'folder',
     activitySection: 'sessions',
-    activityLabel: 'Open Tutoring Sessions',
+    activityLabel: 'Open Learning Plan',
     stepDelta: 1,
   },
   {
@@ -643,7 +643,7 @@ export const INITIAL_ACHIEVEMENT_BADGES: AchievementBadge[] = [
     displayFormat: 'fraction',
     iconKind: 'check',
     activitySection: 'sessions',
-    activityLabel: 'Open Tutoring Sessions',
+    activityLabel: 'Open Learning Plan',
     stepDelta: 1,
   },
   {
@@ -677,7 +677,7 @@ export const INITIAL_ACHIEVEMENT_BADGES: AchievementBadge[] = [
     displayFormat: 'fraction',
     iconKind: 'trophy',
     activitySection: 'sessions',
-    activityLabel: 'Open Tutoring Sessions',
+    activityLabel: 'Open Learning Plan',
     stepDelta: 2,
   },
 
@@ -941,7 +941,7 @@ export const INITIAL_ACHIEVEMENT_BADGES: AchievementBadge[] = [
     displayFormat: 'fraction',
     iconKind: 'shield',
     activitySection: 'sessions',
-    activityLabel: 'Open Tutoring Sessions',
+    activityLabel: 'Open Learning Plan',
     stepDelta: 1,
   },
   {
@@ -958,7 +958,7 @@ export const INITIAL_ACHIEVEMENT_BADGES: AchievementBadge[] = [
     displayFormat: 'fraction',
     iconKind: 'shield',
     activitySection: 'sessions',
-    activityLabel: 'Open Tutoring Sessions',
+    activityLabel: 'Open Learning Plan',
     stepDelta: 1,
   },
 

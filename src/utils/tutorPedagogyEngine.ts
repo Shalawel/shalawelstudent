@@ -1,4 +1,4 @@
-import type { SessionHelpType } from '../types/dashboard';
+import type { SessionHelpType } from '../types/dashboard.ts';
 
 /**
  * TutorCloud AI-Tutor Production Prompt Pack v1.0

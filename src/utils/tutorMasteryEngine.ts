@@ -11,7 +11,7 @@
  * - Voice & Accent/Code-Switching Signal Analyzer (never penalizing accent/hesitation)
  */
 
-import type { PedagogyFamilyId } from './tutorPedagogyEngine';
+import type { PedagogyFamilyId } from './tutorPedagogyEngine.ts';
 
 export interface MasterySignals {
   conceptual_understanding: number; // 0..1

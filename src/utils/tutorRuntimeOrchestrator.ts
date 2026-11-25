@@ -26,7 +26,7 @@ import {
   type PromptQaCheckResult,
   type RuntimeSessionType,
   type SubjectClassification,
-} from './tutorPedagogyEngine';
+} from './tutorPedagogyEngine.ts';
 import {
   analyzeVoiceSignals,
   analyzeWhiteboardSignals,
@@ -37,7 +37,7 @@ import {
   type VoiceTelemetryInput,
   type WhiteboardAnalysisResult,
   type WhiteboardTelemetryInput,
-} from './tutorMasteryEngine';
+} from './tutorMasteryEngine.ts';
 
 /**
  * Section 54: 6-State Runtime Transition Matrix

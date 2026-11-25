@@ -7,15 +7,15 @@ import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import {
   assembleProductionTutorPrompt,
   type RuntimeCognitiveState,
-} from './src/utils/tutorRuntimeOrchestrator';
+} from './src/utils/tutorRuntimeOrchestrator.ts';
 import {
   analyzeVoiceSignals,
   createInitialMasterySignals,
   type MasterySignals,
   type VoiceTelemetryInput,
   type WhiteboardTelemetryInput,
-} from './src/utils/tutorMasteryEngine';
-import type { RuntimeSessionType } from './src/utils/tutorPedagogyEngine';
+} from './src/utils/tutorMasteryEngine.ts';
+import type { RuntimeSessionType } from './src/utils/tutorPedagogyEngine.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
